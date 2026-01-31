@@ -113,16 +113,25 @@ canvas.addEventListener("touchend", () => {
   socket.emit("strokeEnd");
 });
 
-socket.on("draw", ({ from, to }) => {
-  ctx.lineWidth = 4;
-  ctx.lineCap = "round";
-  ctx.strokeStyle = "black";
 
+
+
+socket.on("draw", ({ from, to, color, width, mode }) => {
+  ctx.save();              
   ctx.beginPath();
+
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = width;
+  ctx.strokeStyle = mode === "eraser" ? "#ffffff" : color;
+
   ctx.moveTo(from.x, from.y);
   ctx.lineTo(to.x, to.y);
   ctx.stroke();
+
+  ctx.restore();            
 });
+
 
 socket.on("rebuild", (allStrokes) => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -136,4 +145,5 @@ socket.on("rebuild", (allStrokes) => {
     });
   });
 });
+
 
