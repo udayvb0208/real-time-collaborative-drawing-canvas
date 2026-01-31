@@ -86,19 +86,17 @@ socket.on("draw", (data) => {
 });
 
 
+
 socket.on("rebuild", (strokes) => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  strokes.forEach(stroke => {
-    stroke.segments.forEach(seg => {
-      ctx.beginPath();
-      ctx.moveTo(seg.from.x, seg.from.y);
-      ctx.lineTo(seg.to.x, seg.to.y);
-      ctx.stroke();
-    });
+  strokes.forEach(({ from, to }) => {
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.stroke();
   });
 });
-
 
 
 
@@ -138,6 +136,7 @@ canvas.addEventListener("touchend", () => {
   lastPos = null;
   ctx.beginPath();
 });
+
 
 
 
