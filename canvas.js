@@ -26,13 +26,11 @@ canvas.height = window.innerHeight;
 let drawing = false;
 let lastPos = null;
 
-/* =====================
-   🔒 CONFLICT-SAFE DRAW
-   ===================== */
+
 function drawSegment({ from, to, color, width, mode }) {
   ctx.save();
 
-  ctx.beginPath(); // 🔴 critical: break shared paths
+  ctx.beginPath(); 
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.lineWidth = width;
@@ -45,21 +43,16 @@ function drawSegment({ from, to, color, width, mode }) {
   ctx.restore();
 }
 
-/* =====================
-   UNDO (unchanged)
-   ===================== */
 undoBtn.addEventListener("click", () => {
   socket.emit("undo");
 });
 
-/* =====================
-   MOUSE EVENTS
-   ===================== */
+
 canvas.addEventListener("mousedown", (e) => {
   drawing = true;
   lastPos = getCanvasCoordinates(e, canvas);
 
-  ctx.beginPath(); // keep
+  ctx.beginPath(); 
   socket.emit("strokeStart");
 });
 
@@ -76,7 +69,6 @@ canvas.addEventListener("mousemove", (e) => {
     mode: tool,
   };
 
-  // 🔴 local draw via isolated function
   drawSegment(segment);
 
   socket.emit("draw", segment);
@@ -92,9 +84,7 @@ canvas.addEventListener("mouseup", () => {
   socket.emit("strokeEnd");
 });
 
-/* =====================
-   TOUCH EVENTS
-   ===================== */
+
 canvas.addEventListener("touchstart", (e) => {
   e.preventDefault();
   const touch = e.touches[0];
@@ -135,17 +125,10 @@ canvas.addEventListener("touchend", () => {
   socket.emit("strokeEnd");
 });
 
-/* =====================
-   REMOTE DRAW
-   ===================== */
 socket.on("draw", (segment) => {
   drawSegment(segment);
 });
 
-/* =====================
-   REBUILD (UNDO)
-   UNCHANGED STRUCTURE
-   ===================== */
 socket.on("rebuild", (allStrokes) => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -155,3 +138,4 @@ socket.on("rebuild", (allStrokes) => {
     });
   });
 });
+
