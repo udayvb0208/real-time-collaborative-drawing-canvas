@@ -1,16 +1,12 @@
 {
-  "name": "server",
+  "name": "real-time-collaborative-drawing-canvas-server",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "dependencies": {
-    "express": "^5.2.1",
+    "express": "^4.19.2",
     "socket.io": "^4.8.3"
   }
 }
