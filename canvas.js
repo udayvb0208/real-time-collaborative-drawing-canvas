@@ -1,4 +1,18 @@
-let tool = "brush";
+function getCanvasCoordinates(event, canvas) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+
+  const clientX = event.clientX ?? event.pageX;
+  const clientY = event.clientY ?? event.pageY;
+
+  return {
+    x: (clientX - rect.left) * scaleX,
+    y: (clientY - rect.top) * scaleY,
+  };
+}
+
+let tool = "brush";     
 let strokeColor = "#000000";
 let strokeWidth = 4;
 
@@ -10,81 +24,146 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 let drawing = false;
-let currentStroke = null;
+let lastPos = null;
 
-function getPos(e) {
-  const rect = canvas.getBoundingClientRect();
-  const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-  const y = (e.clientY - rect.top) * (canvas.height / rect.height);
-  return { x, y };
-}
-
-/* ================= DRAW ================= */
+undoBtn.addEventListener("click", () => {
+  socket.emit("undo");
+});
 
 canvas.addEventListener("mousedown", (e) => {
   drawing = true;
-
-  const pos = getPos(e);
-
-  currentStroke = {
-    id: crypto.randomUUID(),
-    tool,
-    color: strokeColor,
-    width: strokeWidth,
-    segments: [],
-  };
-
-  socket.emit("strokeStart", currentStroke);
+  lastPos = getCanvasCoordinates(e, canvas);
 
   ctx.beginPath();
-  ctx.moveTo(pos.x, pos.y);
+  ctx.moveTo(lastPos.x, lastPos.y);
+
+  socket.emit("strokeStart");
 });
 
 canvas.addEventListener("mousemove", (e) => {
   if (!drawing) return;
 
-  const pos = getPos(e);
-  const last = currentStroke.segments.at(-1)?.to || pos;
+  const currentPos = getCanvasCoordinates(e, canvas);
 
-  const segment = { from: last, to: pos };
-  currentStroke.segments.push(segment);
+  ctx.lineWidth = strokeWidth;
+  ctx.strokeStyle = tool === "eraser" ? "#ffffff" : strokeColor;
+  ctx.lineCap = "round";
+  ctx.lineTo(currentPos.x, currentPos.y);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(currentPos.x, currentPos.y);
 
-  drawSegment(segment, currentStroke);
-  socket.emit("strokeMove", segment);
+  socket.emit("draw", {
+  from: lastPos,
+  to: currentPos,
+  color: strokeColor,
+  width: strokeWidth,
+  mode: tool, 
+});
+
+
+  lastPos = currentPos;
 });
 
 canvas.addEventListener("mouseup", () => {
+  if (!drawing) return;
+
   drawing = false;
+  lastPos = null;
+  ctx.beginPath();
+
   socket.emit("strokeEnd");
-  currentStroke = null;
 });
 
-/* ================= UNDO ================= */
+canvas.addEventListener("touchstart", (e) => {
+  e.preventDefault();
+  const touch = e.touches[0];
 
-undoBtn.onclick = () => socket.emit("undo");
+  drawing = true;
+  lastPos = getCanvasCoordinates(touch, canvas);
 
-/* ================= SOCKET ================= */
+  ctx.beginPath();
+  ctx.moveTo(lastPos.x, lastPos.y);
 
-socket.on("drawSegment", ({ segment, stroke }) => {
-  drawSegment(segment, stroke);
+  socket.emit("strokeStart");
 });
 
-socket.on("rebuild", (strokes) => {
+canvas.addEventListener("touchmove", (e) => {
+  if (!drawing) return;
+  e.preventDefault();
+
+  const touch = e.touches[0];
+  const currentPos = getCanvasCoordinates(touch, canvas);
+
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "black";
+  ctx.lineTo(currentPos.x, currentPos.y);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(currentPos.x, currentPos.y);
+
+  socket.emit("draw", {
+    from: lastPos,
+    to: currentPos,
+  });
+
+  lastPos = currentPos;
+});
+
+canvas.addEventListener("touchend", () => {
+  if (!drawing) return;
+
+  drawing = false;
+  lastPos = null;
+  ctx.beginPath();
+
+  socket.emit("strokeEnd");
+});
+
+
+
+
+socket.on("draw", ({ from, to, color, width, mode }) => {
+  ctx.save();                   
+
+  ctx.beginPath();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = width;
+  ctx.strokeStyle = mode === "eraser" ? "#ffffff" : color;
+
+  ctx.moveTo(from.x, from.y);
+  ctx.lineTo(to.x, to.y);
+  ctx.stroke();
+
+  ctx.restore();                 
+});
+
+
+
+socket.on("rebuild", (allStrokes) => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  strokes.forEach(stroke => {
-    stroke.segments.forEach(seg => drawSegment(seg, stroke));
+
+  allStrokes.forEach((stroke) => {
+    stroke.forEach(({ from, to, color, width, mode }) => {
+      ctx.save();             
+
+      ctx.beginPath();
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = width;
+      ctx.strokeStyle = mode === "eraser" ? "#ffffff" : color;
+
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(to.x, to.y);
+      ctx.stroke();
+
+      ctx.restore();             
+    });
   });
 });
 
-/* ================= RENDER ================= */
 
-function drawSegment(seg, stroke) {
-  ctx.lineWidth = stroke.width;
-  ctx.lineCap = "round";
-  ctx.strokeStyle = stroke.tool === "eraser" ? "#ffffff" : stroke.color;
 
-  ctx.beginPath();
-  ctx.moveTo(seg.from.x, seg.from.y);
-  ctx.lineTo(seg.to.x, seg.to.y);
-  ctx.stroke();
-}
+
