@@ -11,47 +11,41 @@ const io = new Server(server, {
   },
 });
 
-let strokes = []; 
-
+// store strokes per user
+const strokes = {};
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
-  socket.on("undo", () => {
-  for (let i = strokes.length - 1; i >= 0; i--) {
-    if (strokes[i].userId === socket.id) {
-      strokes.splice(i, 1);
-      break;
-    }
-  }
 
-  io.emit("rebuild", strokes);
+  // initialize empty history for this user
+  strokes[socket.id] = [];
+
+  socket.on("draw", (data) => {
+    // each line = one undo step
+    strokes[socket.id].push(data);
+
+    // send to others
+    socket.broadcast.emit("draw", data);
   });
 
+  socket.on("undo", () => {
+    if (!strokes[socket.id] || strokes[socket.id].length === 0) return;
+
+    // remove ONLY last line of THIS user
+    strokes[socket.id].pop();
+
+    // rebuild canvas with ALL users' remaining strokes
+    const allStrokes = Object.values(strokes).flat();
+    io.emit("rebuild", allStrokes);
+  });
 
   socket.on("disconnect", () => {
+    delete strokes[socket.id];
     console.log("User disconnected:", socket.id);
   });
-  socket.on("draw", (data) => {
-  let lastStroke = strokes[strokes.length - 1];
-
-  if (lastStroke && lastStroke.userId === socket.id) {
-    lastStroke.segments.push(data);
-  } else {
-    strokes.push({
-      userId: socket.id,
-      segments: [data]
-    });
-  }
-
-  socket.broadcast.emit("draw", data);
-  });
-
-
-
 });
-const PORT = process.env.PORT || 3000;
 
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-
