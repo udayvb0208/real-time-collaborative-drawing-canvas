@@ -9,6 +9,17 @@
   Undo
   </button>
 
+  <div id="toolbar">
+  <button onclick="tool='brush'">Brush</button>
+  <button onclick="tool='eraser'">Eraser</button>
+
+  <input type="color" onchange="strokeColor=this.value" />
+
+  <input type="range" min="1" max="20" value="4"
+         onchange="strokeWidth=this.value" />
+  </div>
+
+
   <canvas id="canvas"></canvas>
 
   <script src="https://real-time-collaborative-drawing-canvas-production-c72a.up.railway.app/socket.io/socket.io.js"></script>
@@ -16,5 +27,6 @@
  <script src="canvas.js"></script>
 </body>
 </html>
+
 
 
