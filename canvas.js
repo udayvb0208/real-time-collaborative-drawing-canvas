@@ -12,106 +12,84 @@ function getCanvasCoordinates(event, canvas) {
   };
 }
 
-
-
-
-
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const undoBtn = document.getElementById("undoBtn");
-let lastPos = null;
-
-undoBtn.addEventListener("click", () => {
-  socket.emit("undo");
-});
-
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 let drawing = false;
+let lastPos = null;
 
-
-canvas.addEventListener("mousemove", (e) => {
-  if (!drawing) return;
-
-  const currentPos = getCanvasCoordinates(e, canvas);
-
-  if (lastPos) {
-    socket.emit("draw", {
-      from: lastPos,
-      to: currentPos
-    });
-  }
-
-  lastPos = currentPos;
-
-  ctx.lineWidth = 4;
-  ctx.lineCap = "round";
-  ctx.strokeStyle = "black";
-
-  ctx.lineTo(currentPos.x, currentPos.y);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(currentPos.x, currentPos.y);
+// ---------------- UNDO ----------------
+undoBtn.addEventListener("click", () => {
+  socket.emit("undo");
 });
 
+// ---------------- MOUSE EVENTS ----------------
 canvas.addEventListener("mousedown", (e) => {
   drawing = true;
   lastPos = getCanvasCoordinates(e, canvas);
 
   ctx.beginPath();
   ctx.moveTo(lastPos.x, lastPos.y);
+
+  // 🔴 IMPORTANT
+  socket.emit("strokeStart");
 });
 
+canvas.addEventListener("mousemove", (e) => {
+  if (!drawing) return;
 
-
-canvas.addEventListener("mouseup", () => {
-  drawing = false;
-  lastPos = null;
-  ctx.beginPath();
-});
-
-socket.on("draw", (data) => {
-  const { from, to } = data;
+  const currentPos = getCanvasCoordinates(e, canvas);
 
   ctx.lineWidth = 4;
   ctx.lineCap = "round";
   ctx.strokeStyle = "black";
-
-  ctx.beginPath();
-  ctx.moveTo(from.x, from.y);
-  ctx.lineTo(to.x, to.y);
+  ctx.lineTo(currentPos.x, currentPos.y);
   ctx.stroke();
-});
+  ctx.beginPath();
+  ctx.moveTo(currentPos.x, currentPos.y);
 
-
-
-socket.on("rebuild", (strokes) => {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  strokes.forEach(({ from, to }) => {
-    ctx.beginPath();
-    ctx.moveTo(from.x, from.y);
-    ctx.lineTo(to.x, to.y);
-    ctx.stroke();
+  socket.emit("draw", {
+    from: lastPos,
+    to: currentPos,
   });
+
+  lastPos = currentPos;
 });
 
+canvas.addEventListener("mouseup", () => {
+  if (!drawing) return;
 
+  drawing = false;
+  lastPos = null;
+  ctx.beginPath();
 
+  // 🔴 IMPORTANT
+  socket.emit("strokeEnd");
+});
+
+// ---------------- TOUCH EVENTS ----------------
 canvas.addEventListener("touchstart", (e) => {
   e.preventDefault();
   const touch = e.touches[0];
+
   drawing = true;
   lastPos = getCanvasCoordinates(touch, canvas);
+
   ctx.beginPath();
   ctx.moveTo(lastPos.x, lastPos.y);
+
+  // 🔴 IMPORTANT
+  socket.emit("strokeStart");
 });
 
 canvas.addEventListener("touchmove", (e) => {
   if (!drawing) return;
   e.preventDefault();
+
   const touch = e.touches[0];
   const currentPos = getCanvasCoordinates(touch, canvas);
 
@@ -132,11 +110,38 @@ canvas.addEventListener("touchmove", (e) => {
 });
 
 canvas.addEventListener("touchend", () => {
+  if (!drawing) return;
+
   drawing = false;
   lastPos = null;
   ctx.beginPath();
+
+  // 🔴 IMPORTANT
+  socket.emit("strokeEnd");
 });
 
+// ---------------- REMOTE DRAW ----------------
+socket.on("draw", ({ from, to }) => {
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "black";
 
+  ctx.beginPath();
+  ctx.moveTo(from.x, from.y);
+  ctx.lineTo(to.x, to.y);
+  ctx.stroke();
+});
 
+// ---------------- REBUILD (UNDO) ----------------
+socket.on("rebuild", (allStrokes) => {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  allStrokes.forEach((stroke) => {
+    stroke.forEach(({ from, to }) => {
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(to.x, to.y);
+      ctx.stroke();
+    });
+  });
+});
