@@ -11,33 +11,47 @@ const io = new Server(server, {
   },
 });
 
-const strokes = {};
+let strokes = []; 
+
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
-  strokes[socket.id] = [];
-
-  socket.on("draw", (data) => {
-    strokes[socket.id].push(data);
-    socket.broadcast.emit("draw", data);
-  });
-
   socket.on("undo", () => {
-    if (strokes[socket.id].length === 0) return;
+  for (let i = strokes.length - 1; i >= 0; i--) {
+    if (strokes[i].userId === socket.id) {
+      strokes.splice(i, 1);
+      break;
+    }
+  }
 
-    strokes[socket.id].pop();
-
-    const allStrokes = Object.values(strokes).flat();
-    io.emit("rebuild", allStrokes);
+  io.emit("rebuild", strokes);
   });
+
 
   socket.on("disconnect", () => {
-    delete strokes[socket.id];
     console.log("User disconnected:", socket.id);
   });
-});
+  socket.on("draw", (data) => {
+  let lastStroke = strokes[strokes.length - 1];
 
+  if (lastStroke && lastStroke.userId === socket.id) {
+    lastStroke.segments.push(data);
+  } else {
+    strokes.push({
+      userId: socket.id,
+      segments: [data]
+    });
+  }
+
+  socket.broadcast.emit("draw", data);
+  });
+
+
+
+});
 const PORT = process.env.PORT || 3000;
+
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
