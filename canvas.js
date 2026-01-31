@@ -12,6 +12,10 @@ function getCanvasCoordinates(event, canvas) {
   };
 }
 
+let tool = "brush";     
+let strokeColor = "#000000";
+let strokeWidth = 4;
+
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 const undoBtn = document.getElementById("undoBtn");
@@ -41,17 +45,20 @@ canvas.addEventListener("mousemove", (e) => {
 
   const currentPos = getCanvasCoordinates(e, canvas);
 
-  ctx.lineWidth = 4;
+  ctx.lineWidth = strokeWidth;
+  ctx.strokeStyle = tool === "eraser" ? "#ffffff" : strokeColor;
   ctx.lineCap = "round";
-  ctx.strokeStyle = "black";
   ctx.lineTo(currentPos.x, currentPos.y);
   ctx.stroke();
   ctx.beginPath();
   ctx.moveTo(currentPos.x, currentPos.y);
 
   socket.emit("draw", {
-    from: lastPos,
-    to: currentPos,
+  from: lastPos,
+  to: currentPos,
+  color: strokeColor,
+  width: strokeWidth,
+  mode: tool,
   });
 
   lastPos = currentPos;
@@ -145,5 +152,6 @@ socket.on("rebuild", (allStrokes) => {
     });
   });
 });
+
 
 
