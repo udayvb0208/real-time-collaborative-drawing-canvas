@@ -6,35 +6,43 @@ const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-  cors: {
-    origin: "*",
-  },
+  cors: { origin: "*" },
 });
 
-// store strokes per user
+// strokes per user: socketId → [ stroke, stroke, ... ]
 const strokes = {};
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
-  // initialize empty history for this user
   strokes[socket.id] = [];
+  let currentStroke = null;
 
-  socket.on("draw", (data) => {
-    // each line = one undo step
-    strokes[socket.id].push(data);
+  socket.on("strokeStart", () => {
+    currentStroke = [];
+  });
 
-    // send to others
-    socket.broadcast.emit("draw", data);
+  socket.on("draw", (segment) => {
+    if (!currentStroke) return;
+
+    currentStroke.push(segment);
+    socket.broadcast.emit("draw", segment);
+  });
+
+  socket.on("strokeEnd", () => {
+    if (currentStroke && currentStroke.length > 0) {
+      strokes[socket.id].push(currentStroke);
+    }
+    currentStroke = null;
   });
 
   socket.on("undo", () => {
     if (!strokes[socket.id] || strokes[socket.id].length === 0) return;
 
-    // remove ONLY last line of THIS user
+    // remove ONLY last stroke of THIS user
     strokes[socket.id].pop();
 
-    // rebuild canvas with ALL users' remaining strokes
+    // rebuild for everyone
     const allStrokes = Object.values(strokes).flat();
     io.emit("rebuild", allStrokes);
   });
