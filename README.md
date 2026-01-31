@@ -22,19 +22,18 @@ A real-time multi-user drawing application where multiple users can draw simulta
 
 # Project Structure
 collaborative-canvas/
-├── client/
-│ ├── index.html
-│ ├── style.css
-│ ├── canvas.js
-│ └── websocket.js
+```
+├── index.html
+├── style.css
+├── canvas.js
+└── websocket.js
 ├── server/
 │ ├── server.js
 │ ├── package.json
 │ └── node_modules/
 ├── README.md
 └── ARCHITECTURE.md
-
-
+```
 ---
 
 ## How to Run the Project Locally
@@ -79,5 +78,6 @@ Notes
 No external drawing libraries are used
 
 All drawing logic is implemented using native Canvas API
+
 
 Real-time synchronization is handled entirely via WebSockets
