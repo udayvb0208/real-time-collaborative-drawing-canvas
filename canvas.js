@@ -12,7 +12,7 @@ function getCanvasCoordinates(event, canvas) {
   };
 }
 
-let tool = "brush";     
+let tool = "brush";
 let strokeColor = "#000000";
 let strokeWidth = 4;
 
@@ -26,6 +26,29 @@ canvas.height = window.innerHeight;
 let drawing = false;
 let lastPos = null;
 
+function drawSegment(seg, stroke) {
+  ctx.save();
+
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = stroke.width;
+
+  if (stroke.tool === "eraser") {
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.strokeStyle = "rgba(0,0,0,1)";
+  } else {
+    ctx.globalCompositeOperation = "source-over";
+    ctx.strokeStyle = stroke.color;
+  }
+
+  ctx.beginPath();
+  ctx.moveTo(seg.from.x, seg.from.y);
+  ctx.lineTo(seg.to.x, seg.to.y);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
 undoBtn.addEventListener("click", () => {
   socket.emit("undo");
 });
@@ -33,10 +56,6 @@ undoBtn.addEventListener("click", () => {
 canvas.addEventListener("mousedown", (e) => {
   drawing = true;
   lastPos = getCanvasCoordinates(e, canvas);
-
-  ctx.beginPath();
-  ctx.moveTo(lastPos.x, lastPos.y);
-
   socket.emit("strokeStart");
 });
 
@@ -45,22 +64,19 @@ canvas.addEventListener("mousemove", (e) => {
 
   const currentPos = getCanvasCoordinates(e, canvas);
 
-  ctx.lineWidth = strokeWidth;
-  ctx.strokeStyle = tool === "eraser" ? "#ffffff" : strokeColor;
-  ctx.lineCap = "round";
-  ctx.lineTo(currentPos.x, currentPos.y);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(currentPos.x, currentPos.y);
+  const segment = { from: lastPos, to: currentPos };
+  const stroke = {
+    tool,
+    color: strokeColor,
+    width: strokeWidth,
+  };
+
+  drawSegment(segment, stroke);
 
   socket.emit("draw", {
-  from: lastPos,
-  to: currentPos,
-  color: strokeColor,
-  width: strokeWidth,
-  mode: tool, 
-});
-
+    ...segment,
+    ...stroke,
+  });
 
   lastPos = currentPos;
 });
@@ -70,8 +86,6 @@ canvas.addEventListener("mouseup", () => {
 
   drawing = false;
   lastPos = null;
-  ctx.beginPath();
-
   socket.emit("strokeEnd");
 });
 
@@ -81,10 +95,6 @@ canvas.addEventListener("touchstart", (e) => {
 
   drawing = true;
   lastPos = getCanvasCoordinates(touch, canvas);
-
-  ctx.beginPath();
-  ctx.moveTo(lastPos.x, lastPos.y);
-
   socket.emit("strokeStart");
 });
 
@@ -95,17 +105,18 @@ canvas.addEventListener("touchmove", (e) => {
   const touch = e.touches[0];
   const currentPos = getCanvasCoordinates(touch, canvas);
 
-  ctx.lineWidth = 4;
-  ctx.lineCap = "round";
-  ctx.strokeStyle = "black";
-  ctx.lineTo(currentPos.x, currentPos.y);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(currentPos.x, currentPos.y);
+  const segment = { from: lastPos, to: currentPos };
+  const stroke = {
+    tool,
+    color: strokeColor,
+    width: strokeWidth,
+  };
+
+  drawSegment(segment, stroke);
 
   socket.emit("draw", {
-    from: lastPos,
-    to: currentPos,
+    ...segment,
+    ...stroke,
   });
 
   lastPos = currentPos;
@@ -116,55 +127,22 @@ canvas.addEventListener("touchend", () => {
 
   drawing = false;
   lastPos = null;
-  ctx.beginPath();
-
   socket.emit("strokeEnd");
 });
 
-
-
-
-socket.on("draw", ({ from, to, color, width, mode }) => {
-  ctx.save();                   
-
-  ctx.beginPath();
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.lineWidth = width;
-  ctx.strokeStyle = mode === "eraser" ? "#ffffff" : color;
-
-  ctx.moveTo(from.x, from.y);
-  ctx.lineTo(to.x, to.y);
-  ctx.stroke();
-
-  ctx.restore();                 
+socket.on("draw", ({ from, to, color, width, tool }) => {
+  drawSegment(
+    { from, to },
+    { color, width, tool }
+  );
 });
-
-
 
 socket.on("rebuild", (allStrokes) => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   allStrokes.forEach((stroke) => {
-    stroke.forEach(({ from, to, color, width, mode }) => {
-      ctx.save();             
-
-      ctx.beginPath();
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.lineWidth = width;
-      ctx.strokeStyle = mode === "eraser" ? "#ffffff" : color;
-
-      ctx.moveTo(from.x, from.y);
-      ctx.lineTo(to.x, to.y);
-      ctx.stroke();
-
-      ctx.restore();             
+    stroke.segments.forEach((seg) => {
+      drawSegment(seg, stroke);
     });
   });
 });
-
-
-
-
-
