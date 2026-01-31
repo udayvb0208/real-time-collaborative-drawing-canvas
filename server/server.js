@@ -9,7 +9,6 @@ const io = new Server(server, {
   cors: { origin: "*" },
 });
 
-// strokes per user: socketId → [ stroke, stroke, ... ]
 const strokes = {};
 
 io.on("connection", (socket) => {
@@ -39,10 +38,8 @@ io.on("connection", (socket) => {
   socket.on("undo", () => {
     if (!strokes[socket.id] || strokes[socket.id].length === 0) return;
 
-    // remove ONLY last stroke of THIS user
     strokes[socket.id].pop();
 
-    // rebuild for everyone
     const allStrokes = Object.values(strokes).flat();
     io.emit("rebuild", allStrokes);
   });
@@ -57,3 +54,4 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
