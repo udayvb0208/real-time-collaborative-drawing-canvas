@@ -58,8 +58,9 @@ canvas.addEventListener("mousemove", (e) => {
   to: currentPos,
   color: strokeColor,
   width: strokeWidth,
-  mode: tool,
-  });
+  mode: tool, 
+});
+
 
   lastPos = currentPos;
 });
@@ -124,9 +125,9 @@ canvas.addEventListener("touchend", () => {
 
 
 socket.on("draw", ({ from, to, color, width, mode }) => {
-  ctx.save();              
-  ctx.beginPath();
+  ctx.save();                   
 
+  ctx.beginPath();
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.lineWidth = width;
@@ -136,22 +137,34 @@ socket.on("draw", ({ from, to, color, width, mode }) => {
   ctx.lineTo(to.x, to.y);
   ctx.stroke();
 
-  ctx.restore();            
+  ctx.restore();                 
 });
+
 
 
 socket.on("rebuild", (allStrokes) => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   allStrokes.forEach((stroke) => {
-    stroke.forEach(({ from, to }) => {
+    stroke.forEach(({ from, to, color, width, mode }) => {
+      ctx.save();             
+
       ctx.beginPath();
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = width;
+      ctx.strokeStyle = mode === "eraser" ? "#ffffff" : color;
+
       ctx.moveTo(from.x, from.y);
       ctx.lineTo(to.x, to.y);
       ctx.stroke();
+
+      ctx.restore();             
     });
   });
 });
+
+
 
 
 
