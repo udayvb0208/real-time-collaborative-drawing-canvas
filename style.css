@@ -30,3 +30,13 @@ canvas {
   box-shadow: 0 0 0 0 black;
 };
 
+#toolbar {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  background: #fff;
+  padding: 8px;
+  border-radius: 6px;
+  z-index: 10;
+}
+
