@@ -3,11 +3,15 @@ function getCanvasCoordinates(event, canvas) {
   const scaleX = canvas.width / rect.width;
   const scaleY = canvas.height / rect.height;
 
+  const clientX = event.clientX ?? event.pageX;
+  const clientY = event.clientY ?? event.pageY;
+
   return {
-    x: (event.clientX - rect.left) * scaleX,
-    y: (event.clientY - rect.top) * scaleY
+    x: (clientX - rect.left) * scaleX,
+    y: (clientY - rect.top) * scaleY,
   };
 }
+
 
 
 
@@ -56,7 +60,6 @@ canvas.addEventListener("mousedown", (e) => {
   drawing = true;
   lastPos = getCanvasCoordinates(e, canvas);
 
-  //  FIX: start a new path
   ctx.beginPath();
   ctx.moveTo(lastPos.x, lastPos.y);
 });
@@ -95,3 +98,46 @@ socket.on("rebuild", (strokes) => {
     });
   });
 });
+
+
+
+
+canvas.addEventListener("touchstart", (e) => {
+  e.preventDefault();
+  const touch = e.touches[0];
+  drawing = true;
+  lastPos = getCanvasCoordinates(touch, canvas);
+  ctx.beginPath();
+  ctx.moveTo(lastPos.x, lastPos.y);
+});
+
+canvas.addEventListener("touchmove", (e) => {
+  if (!drawing) return;
+  e.preventDefault();
+  const touch = e.touches[0];
+  const currentPos = getCanvasCoordinates(touch, canvas);
+
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "black";
+  ctx.lineTo(currentPos.x, currentPos.y);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(currentPos.x, currentPos.y);
+
+  socket.emit("draw", {
+    from: lastPos,
+    to: currentPos,
+  });
+
+  lastPos = currentPos;
+});
+
+canvas.addEventListener("touchend", () => {
+  drawing = false;
+  lastPos = null;
+  ctx.beginPath();
+});
+
+
+
